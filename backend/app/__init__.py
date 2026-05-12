@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-socketio = SocketIO(cors_allowed_origins="*", async_mode="gevent")
+socketio = SocketIO(cors_allowed_origins="*", async_mode="threading")
 jwt = JWTManager()
 mongo_client = None
 db = None
