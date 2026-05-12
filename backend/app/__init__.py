@@ -3,7 +3,9 @@ Healthy Tomorrow — Flask app factory.
 Wires MongoDB, JWT auth, CORS, Socket.IO and all REST blueprints.
 """
 import os
+import re
 from datetime import timedelta
+from urllib.parse import quote_plus
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -13,10 +15,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Global extensions (initialized inside create_app)
 socketio = SocketIO(cors_allowed_origins="*", async_mode="eventlet")
 jwt = JWTManager()
-mongo_client: MongoClient | None = None
+mongo_client = None
 db = None
 
 
@@ -27,35 +28,32 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret-change-me")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
-    app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB uploads
+    app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
     app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "..", "uploads")
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-    # Mongo
-    import re
-    from urllib.parse import quote_plus
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", mongo_uri)
     if m:
         scheme, user, pwd, rest = m.groups()
         mongo_uri = f"{scheme}{quote_plus(user)}:{quote_plus(pwd)}@{rest}"
     db_name = os.getenv("MONGO_DB", "healthy_tomorrow")
-    mongo_client = MongoClient(mongo_uri)
+    mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
     db = mongo_client[db_name]
     app.db = db
 
-    # Indexes (idempotent)
-    db.users.create_index("email", unique=True)
-    db.meals.create_index("name")
-    db.orders.create_index([("user_id", 1), ("created_at", -1)])
-    db.reviews.create_index([("meal_id", 1), ("user_id", 1)], unique=True)
+    try:
+        db.users.create_index("email", unique=True)
+        db.meals.create_index("name")
+        db.orders.create_index([("user_id", 1), ("created_at", -1)])
+        db.reviews.create_index([("meal_id", 1), ("user_id", 1)], unique=True)
+    except Exception as e:
+        print(f"Index creation warning: {e}")
 
-    # Extensions
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     jwt.init_app(app)
     socketio.init_app(app)
 
-    # Blueprints
     from app.routes.auth import auth_bp
     from app.routes.meals import meals_bp
     from app.routes.orders import orders_bp
@@ -78,7 +76,6 @@ def create_app():
     ]:
         app.register_blueprint(bp, url_prefix="/api")
 
-    # Socket events
     from app import sockets  # noqa: F401
 
     @app.route("/api/health")
