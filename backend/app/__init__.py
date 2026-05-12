@@ -33,6 +33,8 @@ def create_app():
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    print(f"DEBUG MONGO_URI: '{mongo_uri}' (len={len(mongo_uri)})", flush=True)
+    print(f"DEBUG starts with mongodb+srv: {mongo_uri.startswith('mongodb+srv://')}", flush=True)
     m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", mongo_uri)
     if m:
         scheme, user, pwd, rest = m.groups()
