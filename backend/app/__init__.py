@@ -54,7 +54,7 @@ def create_app():
     except Exception as e:
         print(f"Index creation warning: {e}")
 
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
     jwt.init_app(app)
     socketio.init_app(app)
 
