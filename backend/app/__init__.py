@@ -32,7 +32,13 @@ def create_app():
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     # Mongo
+    import re
+    from urllib.parse import quote_plus
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", mongo_uri)
+    if m:
+        scheme, user, pwd, rest = m.groups()
+        mongo_uri = f"{scheme}{quote_plus(user)}:{quote_plus(pwd)}@{rest}"
     db_name = os.getenv("MONGO_DB", "healthy_tomorrow")
     mongo_client = MongoClient(mongo_uri)
     db = mongo_client[db_name]
