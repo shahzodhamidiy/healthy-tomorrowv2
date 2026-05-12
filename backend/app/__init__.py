@@ -32,13 +32,15 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "..", "uploads")
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-    print(f"DEBUG MONGO_URI: '{mongo_uri}' (len={len(mongo_uri)})", flush=True)
-    print(f"DEBUG starts with mongodb+srv: {mongo_uri.startswith('mongodb+srv://')}", flush=True)
-    m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", mongo_uri)
-    if m:
-        scheme, user, pwd, rest = m.groups()
-        mongo_uri = f"{scheme}{quote_plus(user)}:{quote_plus(pwd)}@{rest}"
+
+    mongo_user = os.getenv("MONGO_USER", "")
+    mongo_pass = os.getenv("MONGO_PASS", "")
+    mongo_host = os.getenv("MONGO_HOST", "")
+    if mongo_user and mongo_pass and mongo_host:
+        mongo_uri = f"mongodb+srv://{quote_plus(mongo_user)}:{quote_plus(mongo_pass)}@{mongo_host}/?retryWrites=true&w=majority"
+    else:
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    print(f"DEBUG mongo host: '{mongo_host}'", flush=True)
     db_name = os.getenv("MONGO_DB", "healthy_tomorrow")
     mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
     db = mongo_client[db_name]
